@@ -1,4 +1,5 @@
 <script>
+  // Firebase configuration using your provided credentials
   const firebaseConfig = {
     apiKey: "AIzaSyCLhyvtqQICbcyuS4cr_1p5pXvQrMBDtXo",
     authDomain: "battle-ship-7fef4.firebaseapp.com",
@@ -89,8 +90,9 @@
     gameRef.child("boards/" + myId).set(shipData);
 
     gameRef.child("turn").on("value", snap => {
-      isMyTurn = snap.val() === myId;
-      status(isMyTurn ? "Your turn" : "Opponent's turn");
+      const val = snap.val();
+      isMyTurn = val === myId;
+      if (!gameOver) status(isMyTurn ? "Your turn" : "Opponent's turn");
     });
 
     gameRef.child("moves").on("child_added", snap => {
@@ -141,11 +143,12 @@
   }
 
   function checkDefeatArray(grid) {
-    let shipCount = 0;
+    let total = 0;
     for (let y = 0; y < gridSize; y++)
       for (let x = 0; x < gridSize; x++)
-        if (grid[y][x]) shipCount++;
-    return document.querySelectorAll(".hit").length >= shipCount;
+        if (grid[y][x]) total++;
+    const hits = Array.from(document.querySelectorAll(".hit")).length;
+    return hits >= total;
   }
 
   function status(msg) {
