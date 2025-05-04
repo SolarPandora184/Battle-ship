@@ -1,157 +1,188 @@
-<script>
-  // Firebase configuration using your provided credentials
-  const firebaseConfig = {
-    apiKey: "AIzaSyCLhyvtqQICbcyuS4cr_1p5pXvQrMBDtXo",
-    authDomain: "battle-ship-7fef4.firebaseapp.com",
-    projectId: "battle-ship-7fef4",
-    storageBucket: "battle-ship-7fef4.firebasestorage.app",
-    messagingSenderId: "1063233375775",
-    appId: "1:1063233375775:web:de60b46a690a8c013a4f2a",
-    databaseURL: "https://battle-ship-7fef4-default-rtdb.firebaseio.com"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Battleship Online</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #fff; text-align: center; }
+    .grid { display: grid; grid-template-columns: repeat(10, 30px); gap: 2px; justify-content: center; margin: 10px auto; }
+    .cell { width: 30px; height: 30px; background: #4682B4; cursor: pointer; }
+    .cell.hit { background: red; }
+    .cell.miss { background: #ccc; }
+    .cell.ship { background: #2e8b57; }
+    input { padding: 5px; }
+    button { padding: 8px 12px; margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Online Battleship</h1>
+  <div>
+    Game Code: <input id="gameCode" placeholder="ABC123">
+    <button onclick="joinGame()">Join</button>
+  </div>
+  <div id="status">Waiting...</div>
+  <h2>Your Board</h2>
+  <div id="myGrid" class="grid"></div>
+  <h2>Opponent's Board</h2>
+  <div id="opGrid" class="grid"></div>
 
-  const gridSize = 10, shipSizes = [5, 4, 3, 3, 2];
-  let myGrid = [], opGrid = [], myId, gameRef, isMyTurn = false, gameOver = false;
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCLhyvtqQICbcyuS4cr_1p5pXvQrMBDtXo",
+      authDomain: "battle-ship-7fef4.firebaseapp.com",
+      projectId: "battle-ship-7fef4",
+      storageBucket: "battle-ship-7fef4.firebasestorage.app",
+      messagingSenderId: "1063233375775",
+      appId: "1:1063233375775:web:de60b46a690a8c013a4f2a",
+      databaseURL: "https://battle-ship-7fef4-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  function createGrid(el, isMy) {
-    const grid = [];
-    el.innerHTML = '';
-    for (let y = 0; y < gridSize; y++) {
-      grid[y] = [];
-      for (let x = 0; x < gridSize; x++) {
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        if (!isMy) cell.onclick = () => fire(x, y);
-        el.appendChild(cell);
-        grid[y][x] = { x, y, hasShip: false, hit: false, div: cell };
-      }
-    }
-    return grid;
-  }
+    const gridSize = 10, shipSizes = [5, 4, 3, 3, 2];
+    let myGrid = [], opGrid = [], myId, gameRef, isMyTurn = false, gameOver = false;
 
-  function placeShips(grid) {
-    for (let size of shipSizes) {
-      let placed = false;
-      while (!placed) {
-        const x = Math.floor(Math.random() * gridSize);
-        const y = Math.floor(Math.random() * gridSize);
-        const dir = Math.random() < 0.5 ? 'H' : 'V';
-        let fits = true;
-        for (let i = 0; i < size; i++) {
-          let xi = dir === 'H' ? x + i : x;
-          let yi = dir === 'V' ? y + i : y;
-          if (xi >= gridSize || yi >= gridSize || grid[yi][xi].hasShip) { fits = false; break; }
+    function createGrid(el, isMy) {
+      const grid = [];
+      el.innerHTML = '';
+      for (let y = 0; y < gridSize; y++) {
+        grid[y] = [];
+        for (let x = 0; x < gridSize; x++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          if (!isMy) cell.onclick = () => fire(x, y);
+          el.appendChild(cell);
+          grid[y][x] = { x, y, hasShip: false, hit: false, div: cell };
         }
-        if (fits) {
+      }
+      return grid;
+    }
+
+    function placeShips(grid) {
+      for (let size of shipSizes) {
+        let placed = false;
+        while (!placed) {
+          const x = Math.floor(Math.random() * gridSize);
+          const y = Math.floor(Math.random() * gridSize);
+          const dir = Math.random() < 0.5 ? 'H' : 'V';
+          let fits = true;
           for (let i = 0; i < size; i++) {
             let xi = dir === 'H' ? x + i : x;
             let yi = dir === 'V' ? y + i : y;
-            grid[yi][xi].hasShip = true;
-            grid[yi][xi].div.classList.add("ship");
+            if (xi >= gridSize || yi >= gridSize || grid[yi][xi].hasShip) { fits = false; break; }
           }
-          placed = true;
+          if (fits) {
+            for (let i = 0; i < size; i++) {
+              let xi = dir === 'H' ? x + i : x;
+              let yi = dir === 'V' ? y + i : y;
+              grid[yi][xi].hasShip = true;
+              grid[yi][xi].div.classList.add("ship");
+            }
+            placed = true;
+          }
         }
       }
     }
-  }
 
-  function joinGame() {
-    const code = document.getElementById("gameCode").value.trim().toUpperCase();
-    if (!code) return alert("Enter a game code");
+    function joinGame() {
+      const code = document.getElementById("gameCode").value.trim().toUpperCase();
+      if (!code) return alert("Enter a game code");
 
-    gameRef = db.ref("games/" + code);
-    myId = Math.random().toString(36).substr(2, 9);
+      gameRef = db.ref("games/" + code);
+      myId = Math.random().toString(36).substr(2, 9);
 
-    gameRef.once("value").then(snapshot => {
-      if (!snapshot.exists()) {
-        gameRef.set({ players: { [myId]: true }, turn: myId });
-        status("Waiting for opponent...");
-      } else {
-        const data = snapshot.val();
-        if (Object.keys(data.players || {}).length >= 2) {
-          alert("Game full!");
-          return;
-        }
-        gameRef.child("players/" + myId).set(true);
-      }
-
-      setupGame();
-    });
-  }
-
-  function setupGame() {
-    myGrid = createGrid(document.getElementById("myGrid"), true);
-    opGrid = createGrid(document.getElementById("opGrid"), false);
-    placeShips(myGrid);
-
-    const shipData = myGrid.map(row => row.map(cell => cell.hasShip));
-    gameRef.child("boards/" + myId).set(shipData);
-
-    gameRef.child("turn").on("value", snap => {
-      const val = snap.val();
-      isMyTurn = val === myId;
-      if (!gameOver) status(isMyTurn ? "Your turn" : "Opponent's turn");
-    });
-
-    gameRef.child("moves").on("child_added", snap => {
-      const move = snap.val();
-      if (move.to === myId) {
-        const cell = myGrid[move.y][move.x];
-        if (cell.hit) return;
-        cell.hit = true;
-        cell.div.classList.add(cell.hasShip ? "hit" : "miss");
-        if (cell.hasShip && checkDefeat(myGrid)) {
-          gameOver = true;
-          status("You lost!");
+      gameRef.once("value").then(snapshot => {
+        if (!snapshot.exists()) {
+          gameRef.set({ players: { [myId]: true }, turn: myId });
+          status("Waiting for opponent...");
         } else {
-          gameRef.child("turn").set(move.from);
+          const data = snapshot.val();
+          if (Object.keys(data.players || {}).length >= 2) {
+            alert("Game full!");
+            return;
+          }
+          gameRef.child("players/" + myId).set(true);
         }
-      } else if (move.from === myId) {
-        const cell = opGrid[move.y][move.x];
-        cell.div.classList.add(move.hit ? "hit" : "miss");
-        if (move.hit) status("You hit!");
-      }
-    });
-  }
 
-  function fire(x, y) {
-    if (!isMyTurn || gameOver || opGrid[y][x].div.classList.contains("hit") || opGrid[y][x].div.classList.contains("miss")) return;
+        setupGame();
+      });
+    }
 
-    gameRef.child("players").once("value").then(snap => {
-      const opp = Object.keys(snap.val()).find(k => k !== myId);
-      if (!opp) return;
+    function setupGame() {
+      myGrid = createGrid(document.getElementById("myGrid"), true);
+      opGrid = createGrid(document.getElementById("opGrid"), false);
+      placeShips(myGrid);
 
-      gameRef.child("boards/" + opp).once("value").then(boardSnap => {
-        const board = boardSnap.val();
-        const hit = board[y][x];
-        gameRef.child("moves").push({ from: myId, to: opp, x, y, hit });
-        if (hit && checkDefeatArray(board)) {
-          gameOver = true;
-          status("You win!");
-        } else {
-          isMyTurn = false;
-          gameRef.child("turn").set(opp);  // Force turn update here
+      const shipData = myGrid.map(row => row.map(cell => cell.hasShip));
+      gameRef.child("boards/" + myId).set(shipData);
+
+      gameRef.child("turn").on("value", snap => {
+        const val = snap.val();
+        isMyTurn = val === myId;
+        status(isMyTurn ? "Your turn" : "Opponent's turn");
+      });
+
+      gameRef.child("moves").on("child_added", snap => {
+        const move = snap.val();
+        if (move.to === myId) {
+          const cell = myGrid[move.y][move.x];
+          if (cell.hit) return;
+          cell.hit = true;
+          cell.div.classList.add(cell.hasShip ? "hit" : "miss");
+          if (cell.hasShip && checkDefeat(myGrid)) {
+            gameOver = true;
+            status("You lost!");
+          } else {
+            gameRef.child("turn").set(move.from);
+          }
+        } else if (move.from === myId) {
+          const cell = opGrid[move.y][move.x];
+          if (!cell.div.classList.contains("hit") && !cell.div.classList.contains("miss")) {
+            cell.div.classList.add(move.hit ? "hit" : "miss");
+          }
+          if (move.hit) status("You hit!");
         }
       });
-    });
-  }
+    }
 
-  function checkDefeat(grid) {
-    return grid.flat().filter(c => c.hasShip && !c.hit).length === 0;
-  }
+    function fire(x, y) {
+      if (!isMyTurn || gameOver || opGrid[y][x].div.classList.contains("hit") || opGrid[y][x].div.classList.contains("miss")) return;
 
-  function checkDefeatArray(grid) {
-    let total = 0;
-    for (let y = 0; y < gridSize; y++)
-      for (let x = 0; x < gridSize; x++)
-        if (grid[y][x]) total++;
-    const hits = Array.from(document.querySelectorAll(".hit")).length;
-    return hits >= total;
-  }
+      gameRef.child("players").once("value").then(snap => {
+        const opp = Object.keys(snap.val()).find(k => k !== myId);
+        if (!opp) return;
 
-  function status(msg) {
-    document.getElementById("status").textContent = msg;
-  }
-</script>
+        gameRef.child("boards/" + opp).once("value").then(boardSnap => {
+          const board = boardSnap.val();
+          const hit = board[y][x];
+          gameRef.child("moves").push({ from: myId, to: opp, x, y, hit });
+          if (hit && checkDefeatArray(board)) {
+            gameOver = true;
+            status("You win!");
+          } else {
+            isMyTurn = false;
+            status("Opponent's turn");
+          }
+        });
+      });
+    }
+
+    function checkDefeat(grid) {
+      return grid.flat().filter(c => c.hasShip && !c.hit).length === 0;
+    }
+
+    function checkDefeatArray(grid) {
+      let count = 0;
+      for (let y = 0; y < gridSize; y++)
+        for (let x = 0; x < gridSize; x++)
+          if (grid[y][x]) count++;
+      return document.querySelectorAll("#opGrid .hit").length >= count;
+    }
+
+    function status(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+  </script>
+</body>
+</html>
