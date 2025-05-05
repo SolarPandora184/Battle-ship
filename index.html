@@ -28,7 +28,6 @@
   <div id="opGrid" class="grid"></div>
 
   <script>
-    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyCLhyvtqQICbcyuS4cr_1p5pXvQrMBDtXo",
       authDomain: "battle-ship-7fef4.firebaseapp.com",
@@ -94,19 +93,24 @@
       myId = Math.random().toString(36).substr(2, 9);
 
       gameRef.once("value").then(snapshot => {
-        if (!snapshot.exists()) {
-          gameRef.set({ players: { [myId]: true }, turn: myId });
-          status("Waiting for opponent...");
-        } else {
-          const data = snapshot.val();
-          if (Object.keys(data.players || {}).length >= 2) {
-            alert("Game full!");
-            return;
-          }
-          gameRef.child("players/" + myId).set(true);
+        const data = snapshot.val();
+        const players = data?.players || {};
+
+        if (Object.keys(players).length >= 2) {
+          alert("Game full!");
+          return;
         }
 
-        setupGame();
+        const updates = {};
+        updates[`players/${myId}`] = true;
+
+        if (!snapshot.exists()) {
+          updates["turn"] = myId;
+        }
+
+        gameRef.update(updates).then(() => {
+          setupGame();
+        });
       });
     }
 
