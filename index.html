@@ -126,19 +126,24 @@
       gameRef.child("moves").on("child_added", snap => {
         const move = snap.val();
         if (move.to === myId) {
-          const cell = opGrid[move.y][move.x];
+          const cell = myGrid[move.y][move.x];
           if (cell.hit) return;
           cell.hit = true;
-          cell.div.classList.add(move.hit ? "hit" : "miss");
+          cell.div.classList.add(cell.hasShip ? "hit" : "miss");
 
-          if (move.hit && checkDefeat(opGrid)) {
+          if (cell.hasShip && checkDefeat(myGrid)) {
             gameOver = true;
             status("You lost!");
           }
         } else if (move.from === myId) {
-          const cell = myGrid[move.y][move.x];
+          const cell = opGrid[move.y][move.x];
           cell.div.classList.add(move.hit ? "hit" : "miss");
           if (move.hit) status("You hit!");
+        }
+        // Opponent's shots on my grid
+        if (move.from !== myId && move.to === myId) {
+          const cell = myGrid[move.y][move.x];
+          cell.div.classList.add(move.hit ? "hit" : "miss");
         }
       });
     }
