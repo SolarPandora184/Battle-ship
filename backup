@@ -140,6 +140,11 @@
           cell.div.classList.add(move.hit ? "hit" : "miss");
           if (move.hit) status("You hit!");
         }
+        // Opponent's shots on my grid
+        if (move.from !== myId && move.to === myId) {
+          const cell = myGrid[move.y][move.x];
+          cell.div.classList.add(move.hit ? "hit" : "miss");
+        }
       });
     }
 
