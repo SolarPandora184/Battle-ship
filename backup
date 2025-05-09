@@ -93,24 +93,19 @@
       myId = Math.random().toString(36).substr(2, 9);
 
       gameRef.once("value").then(snapshot => {
-        const data = snapshot.val();
-        const players = data?.players || {};
-
-        if (Object.keys(players).length >= 2) {
-          alert("Game full!");
-          return;
-        }
-
-        const updates = {};
-        updates[`players/${myId}`] = true;
-
         if (!snapshot.exists()) {
-          updates["turn"] = myId;
+          gameRef.set({ players: { [myId]: true }, turn: myId });
+          status("Waiting for opponent...");
+        } else {
+          const data = snapshot.val();
+          if (Object.keys(data.players || {}).length >= 2) {
+            alert("Game full!");
+            return;
+          }
+          gameRef.child("players/" + myId).set(true);
         }
 
-        gameRef.update(updates).then(() => {
-          setupGame();
-        });
+        setupGame();
       });
     }
 
@@ -135,11 +130,10 @@
           if (cell.hit) return;
           cell.hit = true;
           cell.div.classList.add(cell.hasShip ? "hit" : "miss");
+
           if (cell.hasShip && checkDefeat(myGrid)) {
             gameOver = true;
             status("You lost!");
-          } else {
-            gameRef.child("turn").set(move.from);
           }
         } else if (move.from === myId) {
           const cell = opGrid[move.y][move.x];
@@ -160,6 +154,10 @@
           const board = boardSnap.val();
           const hit = board[y][x];
           gameRef.child("moves").push({ from: myId, to: opp, x, y, hit });
+
+          // Always switch turn after firing
+          gameRef.child("turn").set(opp);
+
           if (hit && checkDefeatArray(board)) {
             gameOver = true;
             status("You win!");
